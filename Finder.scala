@@ -22,12 +22,12 @@ object Finder {
       ouput: Either[String, Either[List[String], String]]
   ) extends Finder {
     def show(): Unit = {
-      println(s"found: ${found.mkString(" ")}")
+      if found.nonEmpty then println(s"found: ${found.mkString(" ")}")
 
       ouput match {
-        case Left(msg) => println(s"something went wrong: $msg")
+        case Left(msg) => println(s"Something went wrong: $msg")
         case Right(Left(possibles)) =>
-          println("did you mean any of these:")
+          println("Did you mean any of these:")
           possibles.foreach(println)
         case Right(Right(msg)) => println(msg)
       }

@@ -1,10 +1,13 @@
 // using scala 3.1.0
 // using lib org.jsoup:jsoup:1.14.3
+// TODO figure out what Scala 3 scalac options we want for better warnings
+
 import org.jsoup.Jsoup
 import scala.collection.JavaConverters._
 import scala.util.Try
 import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
+import scala.annotation.tailrec
 
 val mavenCentral = "https://repo.maven.apache.org/maven2/"
 
@@ -22,15 +25,14 @@ def help() = {
   println(msg)
 }
 
-def find(finder: Finder.ActiveFinder): Unit = {
+def find(finder: Finder.ActiveFinder): Finder.StoppedFinder = {
   val session = Jsoup.newSession
 
+  @tailrec
   def fetch(url: String, finder: Finder.ActiveFinder): Finder.StoppedFinder = {
     val needle :: leftover = finder.toFind
 
     // TODO do we need to sanitize or worry about anything here?
-    // TODO move this out of here
-    // TODO we should use a new session for this later to re-use the auth
     val possibleDoc: Either[Finder.StoppedFinder, Document] =
       try {
         Right(session.newRequest.url(url).get())
@@ -52,45 +54,37 @@ def find(finder: Finder.ActiveFinder): Unit = {
           .asScala
           .toList
 
-        val possibles: List[String] = allLinks.collect {
-          case elem if elem.attr("title").startsWith(needle) =>
+        allLinks.collect {
+          case elem if elem.attr("title").startsWith(needle.value) =>
             elem.attr("title")
-        }
-
-        if (possibles.contains(s"$needle/") && leftover.nonEmpty) {
-          fetch(s"$url$needle/", finder.update(needle, leftover))
-        } else if (possibles.contains(s"$needle/")) {
-          // We can _maybe_ assume the metadata file is here as well since there is none left
-          finder.updateAndStop(needle)
-        } else if (possibles.isEmpty) {
-          finder.stop(s"Can't find $needle or anything like it")
-        } else {
-          finder.stop(possibles) // TODO do we want o track the needle?
+        } match {
+          case possibles
+              if possibles.contains(s"${needle.value}/") && leftover.nonEmpty =>
+            fetch(s"$url${needle.value}/", finder.update(needle, leftover))
+          case possibles if possibles.contains(s"${needle.value}/") =>
+            finder.updateAndStop(needle)
+          case possibles if possibles.isEmpty =>
+            finder.stop(
+              s"Can't find ${needle.value} or anything that starts with it"
+            )
+          case possibles =>
+            finder.stop(possibles.filterNot(_.startsWith("maven-metadata")))
         }
     }
   }
 
-  val result = fetch(mavenCentral, finder)
-  result.show()
+  fetch(mavenCentral, finder)
 }
 
-def exists(finder: Finder): Unit = {
+def findAndShow(finder: Finder): Unit = {
   finder match {
-    case Finder.StoppedFinder(found, Left(msg)) => println(msg)
-    case Finder.StoppedFinder(found, Right(Left(possibles))) =>
-      possibles.foreach(println)
-    case Finder.StoppedFinder(found, Right(Right(msg))) =>
-      println(msg) // TODO maybe use found
-    case active @ Finder.ActiveFinder(_, _) => find(active)
+    case active: Finder.ActiveFinder   => find(active).show()
+    case stopped: Finder.StoppedFinder => stopped.show()
   }
-
 }
 
-@main def run(args: String*) = {
-
+@main def run(args: String*) =
   args match {
     case Seq() | Seq("help") | Seq("--h") | Seq("-h") => help()
-    case args => exists(Finder.fromArgs(args))
+    case args => findAndShow(Finder.fromArgs(args))
   }
-
-}

@@ -3,7 +3,8 @@ sealed trait Finder
 object Finder {
   case class ActiveFinder(
       found: List[DependencySegment],
-      toFind: List[DependencySegment]
+      toFind: List[DependencySegment],
+      fetcher: Fetcher
   ) extends Finder {
 
     def addEmptySegment = {
@@ -19,7 +20,7 @@ object Finder {
     def update(
         justFound: DependencySegment,
         leftover: List[DependencySegment]
-    ) = this.copy(found = found :+ justFound, toFind = leftover)
+    ): ActiveFinder = this.copy(found = found :+ justFound, toFind = leftover)
 
     def updateAndStop(justFound: DependencySegment): StoppedFinder =
       StoppedFinder(found :+ justFound, Right(Right("It exists!")))
@@ -31,8 +32,10 @@ object Finder {
   }
 
   object ActiveFinder {
-    def apply(toFind: List[DependencySegment]): ActiveFinder =
-      ActiveFinder(List.empty, toFind)
+    def apply(
+        toFind: List[DependencySegment]
+    ): ActiveFinder =
+      ActiveFinder(List.empty, toFind, new Fetcher)
   }
 
   case class StoppedFinder(
@@ -64,6 +67,7 @@ object Finder {
 
     val dep = args.headOption
     val emptyEnding = dep.map(_.endsWith(":")).getOrElse(false)
+    val repository = SonatypeSnapshots
 
     dep.map(_.split(":").toSeq) match {
       case Some(Seq(org)) if emptyEnding =>
@@ -101,6 +105,7 @@ object Finder {
              |exists org.scalameta:metals_2.12:0
              |""".stripMargin
         )
+
     }
   }
 }

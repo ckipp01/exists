@@ -4,7 +4,8 @@ object Finder {
   case class ActiveFinder(
       found: List[DependencySegment],
       toFind: List[DependencySegment],
-      fetcher: Fetcher
+      fetcher: Fetcher,
+      repository: Repository
   ) extends Finder {
 
     def addEmptySegment = {
@@ -29,13 +30,18 @@ object Finder {
 
     def stop(possibles: List[String]): StoppedFinder =
       StoppedFinder(found, Right(Left(possibles)))
+
+    def updateRepository(Repository: Repository) =
+      this.copy(repository = repository)
+
+    def find() = repository.findWith(this)
   }
 
   object ActiveFinder {
     def apply(
         toFind: List[DependencySegment]
     ): ActiveFinder =
-      ActiveFinder(List.empty, toFind, new Fetcher)
+      ActiveFinder(List.empty, toFind, new Fetcher, CentralRepository)
   }
 
   case class StoppedFinder(
@@ -63,32 +69,29 @@ object Finder {
 
   private def splitOrg(org: String): List[String] = org.split('.').toList
 
-  def fromArgs(args: Seq[String]): Finder = {
+  def fromString(dep: String): Finder = {
+    val emptyEnding = dep.endsWith(":")
 
-    val dep = args.headOption
-    val emptyEnding = dep.map(_.endsWith(":")).getOrElse(false)
-    val repository = SonatypeSnapshots
-
-    dep.map(_.split(":").toSeq) match {
-      case Some(Seq(org)) if emptyEnding =>
+    dep.split(":").toSeq match {
+      case Seq(org) if emptyEnding =>
         ActiveFinder(
           splitOrg(org).map(Org.apply)
         ).addEmptySegment
 
-      case Some(Seq(org)) =>
+      case Seq(org) =>
         ActiveFinder(splitOrg(org).map(Org.apply))
 
-      case Some(Seq(org, name)) if emptyEnding =>
+      case Seq(org, name) if emptyEnding =>
         ActiveFinder(
           splitOrg(org).map(Org.apply) :+ Artifact(name)
         ).addEmptySegment
 
-      case Some(Seq(org, name)) =>
+      case Seq(org, name) =>
         ActiveFinder(
           splitOrg(org).map(Org.apply) :+ Artifact(name)
         )
 
-      case Some(Seq(org, name, version)) =>
+      case Seq(org, name, version) =>
         ActiveFinder(
           splitOrg(org).map(Org.apply) ++ List(
             Artifact(name),

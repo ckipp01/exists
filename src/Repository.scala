@@ -47,14 +47,24 @@ sealed trait Repository {
   def findWith(finder: Finder.ActiveFinder) = fetch(url, finder)
 }
 
+object Repository {
+  def fromString(name: String) = {
+    name.toLowerCase match {
+      case "central" | "sonatype:releases"            => CentralRepository
+      case "sonatype:snapshot" | "sonatype:snapshots" => SonatypeSnapshots
+      case _                                          => CentralRepository
+    }
+  }
+}
+
 case object CentralRepository extends Repository {
-  val name = "Central"
+  val name = "central"
   val url = "https://repo1.maven.org/maven2/"
   def startUrl(segments: List[DependencySegment]) = url
 }
 
 case object SonatypeReleases extends Repository {
-  val name = "Sonatype Releases"
+  val name = "sonatype:releases"
   // https://oss.sonatype.org/content/repositories/releases/ will just redirect
   // to the above so we just make them point to exactly the same thing and
   // avoid the redirect
@@ -63,7 +73,7 @@ case object SonatypeReleases extends Repository {
 }
 
 case object SonatypeSnapshots extends Repository {
-  val name = "Sonatype Snapshots"
+  val name = "sonatype:snapshots"
   val url = "https://oss.sonatype.org/content/repositories/snapshots/"
   def startUrl(segments: List[DependencySegment]) = {
     assert(segments.nonEmpty)

@@ -8,16 +8,6 @@ object Finder {
       repository: Repository
   ) extends Finder {
 
-    def addEmptySegment = {
-      toFind.last match {
-        case org: Org =>
-          this.copy(toFind = toFind :+ Artifact(""))
-        case artifact: Artifact =>
-          this.copy(toFind = toFind :+ Version(""))
-        case _ => this
-      }
-    }
-
     def update(
         justFound: DependencySegment,
         leftover: List[DependencySegment]
@@ -35,6 +25,19 @@ object Finder {
       this.copy(repository = repository)
 
     def find() = repository.findWith(this)
+
+    def withRepository(name: String) = {
+      this.copy(repository = Repository.fromString(name))
+    }
+
+    def withDeps(deps: List[DependencySegment]) = {
+      assert(
+        toFind.isEmpty,
+        "This should only ever be called once and it looks like it already has been"
+      )
+      this.copy(toFind = deps)
+    }
+
   }
 
   object ActiveFinder {
@@ -42,6 +45,8 @@ object Finder {
         toFind: List[DependencySegment]
     ): ActiveFinder =
       ActiveFinder(List.empty, toFind, new Fetcher, CentralRepository)
+
+    def empty() = apply(List.empty)
   }
 
   case class StoppedFinder(
@@ -67,48 +72,10 @@ object Finder {
       StoppedFinder(List.empty, Left(msg))
   }
 
-  private def splitOrg(org: String): List[String] = org.split('.').toList
-
   def fromString(dep: String): Finder = {
-    val emptyEnding = dep.endsWith(":")
-
-    dep.split(":").toSeq match {
-      case Seq(org) if emptyEnding =>
-        ActiveFinder(
-          splitOrg(org).map(Org.apply)
-        ).addEmptySegment
-
-      case Seq(org) =>
-        ActiveFinder(splitOrg(org).map(Org.apply))
-
-      case Seq(org, name) if emptyEnding =>
-        ActiveFinder(
-          splitOrg(org).map(Org.apply) :+ Artifact(name)
-        ).addEmptySegment
-
-      case Seq(org, name) =>
-        ActiveFinder(
-          splitOrg(org).map(Org.apply) :+ Artifact(name)
-        )
-
-      case Seq(org, name, version) =>
-        ActiveFinder(
-          splitOrg(org).map(Org.apply) ++ List(
-            Artifact(name),
-            Version(version)
-          )
-        )
-
-      case _ =>
-        StoppedFinder.fromBadFormat(
-          """|Looks like you passed in the wrong shape.
-             |
-             |Try something like this:
-             |
-             |exists org.scalameta:metals_2.12:0
-             |""".stripMargin
-        )
-
+    DependencySegment.fromString(dep) match {
+      case Right(segments) => ActiveFinder(segments)
+      case Left(invalid)   => StoppedFinder.fromBadFormat(invalid)
     }
   }
 }

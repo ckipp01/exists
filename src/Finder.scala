@@ -53,8 +53,8 @@ object Finder:
       )
       this.copy(toFind = deps)
 
-    def withMetadata(url: String) =
-      Metadata.parse(fetcher.getDoc(url)) match
+    def withMetadata(baseUrl: String) =
+      Metadata.parse(fetcher.getDoc(s"${baseUrl}maven-metadata.xml")) match
         case Left(err) =>
           println(s"Something went wrong fetching metadata: $err")
           this
@@ -86,6 +86,18 @@ object Finder:
       metadata: Option[Metadata]
   ) extends Finder:
     def show(): Unit =
+      if found.nonEmpty then
+        val start = "Found up until: "
+        val prettyOutput = found.foldLeft(start) { (a, b) =>
+          (a, b) match
+            case (`start`, DependencySegment.Org(value)) => start + value
+            case (partialOrg, DependencySegment.Org(value)) =>
+              s"${partialOrg}.${value}"
+            case partial => s"${partial._1}:${partial._2.value}"
+
+        }
+        println(prettyOutput)
+
       metadata match
         case None => ()
         case Some(Metadata(version, Some(latest))) =>
@@ -96,14 +108,17 @@ object Finder:
             s"Latest version according to metadata: ${metadata.latestVersion}"
           )
 
-      if found.nonEmpty then println(s"found: ${found.mkString(" ")}")
-
       ouput match
         case Left(msg) => println(s"Something went wrong: $msg")
         case Right(Left(possibles)) =>
-          println("Did you mean any of these:")
+          val totalToShow = Math.min(possibles.size, 5)
+          println(
+            s"Exact match not found, so here are the $totalToShow closest versions with the newest dates:"
+          )
           // TODO for now we are just taking 5 so we don't get a giant list
-          possibles.take(5).foreach(possible => println(possible.dropRight(1)))
+          possibles
+            .take(totalToShow)
+            .foreach(possible => println(s" ${possible.dropRight(1)}"))
         case Right(Right(msg)) => println(msg)
     end show
   end StoppedFinder

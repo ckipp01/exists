@@ -3,6 +3,12 @@ import org.jsoup.Jsoup
 
 import scala.collection.JavaConverters.*
 import scala.annotation.tailrec
+import Finder.StoppedFinder
+import org.jsoup.nodes.Element
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import scala.util.Try
+import java.time.ZonedDateTime
 
 /** An ADT of the type of repositories that exist and exists knows how to
   *  traverse through.
@@ -14,6 +20,36 @@ sealed trait Repository:
   /** The url of the repository */
   def url: String
 
+  def gatherPossibles(doc: Document): List[(String, LocalDateTime)] =
+    val dateRegex = """([0-9]{4}-[0-9]{2}-[0-9]{2})"""
+    val timeRegex = """([0-9]{2}:[0-9]{2})"""
+    val DateTimeAndIgnoreOtherJunk = (dateRegex + " " + timeRegex + ".*").r
+    doc
+      .select("a")
+      .asScala
+      .toList
+      .map { elem =>
+        (elem.text, Try(elem.nextSibling.toString.trim).getOrElse(""))
+      }
+      .map {
+        case (version, DateTimeAndIgnoreOtherJunk(date, time)) =>
+          (
+            version,
+            // TODO this can throw
+            LocalDateTime.parse(
+              s"$date $time",
+              DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm")
+            )
+          )
+        case (version, _) =>
+          (version, LocalDateTime.now)
+      }
+  end gatherPossibles
+
+  /** Where the actual parsing of the index pages happen.
+    * @param url the url that will be fetched
+    * @param finder the finder that is being used to fetch
+    */
   @tailrec
   final def fetch(
       url: String,
@@ -24,15 +60,13 @@ sealed trait Repository:
     finder.fetcher.getDoc(url) match
       case Left(msg) => finder.stop(msg)
       case Right(doc) =>
-        val allLinks = doc
-          .select("a")
-          .asScala
-          .toList
+        val all = gatherPossibles(doc).sortBy(_._2).reverse
+        val metadataExists = containsMetadata(all.map(_._1))
 
         (
-          allLinks.collect {
-            case elem if elem.text.startsWith(needle.value) =>
-              elem.text
+          all.collect {
+            case (version, date) if version.startsWith(needle.value) =>
+              version
           },
           needle
         ) match
@@ -43,37 +77,32 @@ sealed trait Repository:
             fetch(s"$url${needle.value}/", finder.update(needle, leftover))
 
           case (possibles, DependencySegment.Version(_))
-              if possibles.contains(s"${needle.value}/") && allLinks
-                .find(
-                  _.text == "maven-metadata.xml"
-                )
-                .nonEmpty =>
+              if possibles
+                .contains(s"${needle.value}/") && metadataExists =>
             finder
-              .withMetadata(s"${url}maven-metadata.xml")
+              .withMetadata(url)
               .updateAndStop(needle)
 
           case (possibles, DependencySegment.Version(_))
               if possibles.contains(s"${needle.value}/") =>
-            println("missing a maven metadata file!!!!")
+            println("Missing a maven metadata file!!!!")
             finder.updateAndStop(needle)
 
           case (possibles, _) if possibles.contains(s"${needle.value}/") =>
             finder.updateAndStop(needle)
 
           case (possibles, DependencySegment.Version(_))
-              if possibles.isEmpty && allLinks
-                .find(_.text == "maven-metadata.xml")
-                .nonEmpty =>
+              if possibles.isEmpty && metadataExists =>
             finder
-              .withMetadata(s"${url}maven-metadata.xml")
+              .withMetadata(url)
               .stop(
                 s"Can't find ${needle.value} or anything that starts with it"
               )
 
           case (possibles, DependencySegment.Version(_)) if possibles.isEmpty =>
-            println("missing a maven metadata file!!!!")
+            println("Missing a maven metadata file!!!!")
             finder
-              .withMetadata(s"${url}maven-metadata.xml")
+              .withMetadata(url)
               .stop(
                 s"Can't find ${needle.value} or anything that starts with it"
               )
@@ -83,12 +112,9 @@ sealed trait Repository:
               s"Can't find ${needle.value} or anything that starts with it"
             )
 
-          case (possibles, DependencySegment.Version(_))
-              if allLinks
-                .find(_.text == "maven-metadata.xml")
-                .nonEmpty =>
+          case (possibles, DependencySegment.Version(_)) if metadataExists =>
             finder
-              .withMetadata(s"${url}maven-metadata.xml")
+              .withMetadata(url)
               .stop(
                 possibles.filterNot(possible =>
                   possible.startsWith(
@@ -98,7 +124,7 @@ sealed trait Repository:
               )
 
           case (possibles, DependencySegment.Version(_)) =>
-            println("missing a maven metadata file!!!!")
+            println("Missing a maven metadata file!!!!")
             finder
               .stop(
                 possibles.filterNot(possible =>
@@ -120,7 +146,12 @@ sealed trait Repository:
     end match
   end fetch
 
-  def findWith(finder: Finder.ActiveFinder) = fetch(url, finder)
+  def findWith(finder: Finder.ActiveFinder): StoppedFinder = fetch(url, finder)
+
+  private def containsMetadata(links: List[String]): Boolean =
+    links.contains("maven-metadata.xml")
+//links.find(_.text == "maven-metadata.xml").nonEmpty
+
 end Repository
 
 object Repository:
@@ -149,6 +180,24 @@ case object SonatypeSnapshots extends Repository:
   def startUrl(segments: List[DependencySegment]) =
     assert(segments.nonEmpty)
     s"$url${segments.head.value}/"
+
+  private val zdtFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss zzz uuuu")
+
+  override def gatherPossibles(doc: Document): List[(String, LocalDateTime)] =
+    doc.select("tr").asScala.toList.flatMap { tr =>
+      val lastModified =
+        tr.select("td:nth-child(2)").text()
+      val version =
+        tr.select("td:nth-child(1)").text()
+      if lastModified.nonEmpty && !version.contains("maven-metadata") then
+        val date: ZonedDateTime =
+          ZonedDateTime.parse(lastModified, zdtFormatter)
+        List((version, date.toLocalDateTime))
+      else List.empty
+    }
+
+  end gatherPossibles
 
   override def findWith(finder: Finder.ActiveFinder): Finder.StoppedFinder =
     val firstSegment = finder.toFind.headOption

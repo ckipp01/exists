@@ -3,7 +3,11 @@ import java.time.LocalDateTime
 import scala.util.Try
 import java.time.format.DateTimeFormatter
 
-case class Metadata(latestVersion: String, lasdUpdatedDate: Option[LocalDateTime])
+enum Metadata:
+  case Found(latestVersion: String, lasdUpdatedDate: Option[LocalDateTime])
+      extends Metadata
+  case Missing extends Metadata
+end Metadata
 
 object Metadata:
 
@@ -23,7 +27,7 @@ object Metadata:
             )
           )
 
-        Right(Metadata(latest, lastUpdated))
+        Right(Metadata.Found(latest, lastUpdated))
       case Left(err) => Left(err)
   end parse
 

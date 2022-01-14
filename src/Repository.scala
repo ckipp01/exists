@@ -77,80 +77,56 @@ sealed trait Repository:
             fetch(s"$url${needle.value}/", finder.update(needle, leftover))
 
           case (possibles, DependencySegment.Version(_))
-              if possibles
-                .contains(s"${needle.value}/") && metadataExists =>
-            finder
-              .withMetadata(url)
-              .updateAndStop(needle)
-
-          case (possibles, DependencySegment.Version(_))
               if possibles.contains(s"${needle.value}/") =>
-            println("Missing a maven metadata file!!!!")
-            finder.updateAndStop(needle)
+            if metadataExists then
+              finder.withMetadata(url).updateAndStop(needle)
+            else finder.withMissingMetadata().updateAndStop(needle)
 
           case (possibles, _) if possibles.contains(s"${needle.value}/") =>
             finder.updateAndStop(needle)
 
-          case (possibles, DependencySegment.Version(_))
-              if possibles.isEmpty && metadataExists =>
-            finder
-              .withMetadata(url)
-              .stop(
-                s"Can't find ${needle.value} or anything that starts with it"
-              )
-
           case (possibles, DependencySegment.Version(_)) if possibles.isEmpty =>
-            println("Missing a maven metadata file!!!!")
-            finder
-              .withMetadata(url)
-              .stop(
-                s"Can't find ${needle.value} or anything that starts with it"
-              )
+            val message =
+              s"Can't find ${needle.value} or anything that starts with it"
+            if metadataExists then
+              finder
+                .withMetadata(url)
+                .stop(message)
+            else
+              finder
+                .withMissingMetadata()
+                .stop(message)
 
           case (possibles, _) if possibles.isEmpty =>
             finder.stop(
               s"Can't find ${needle.value} or anything that starts with it"
             )
 
-          case (possibles, DependencySegment.Version(_)) if metadataExists =>
-            finder
-              .withMetadata(url)
-              .stop(
-                possibles.filterNot(possible =>
-                  possible.startsWith(
-                    "maven-metadata"
-                  ) || possible == "Parent Directory" || possible == "../"
-                )
-              )
-
           case (possibles, DependencySegment.Version(_)) =>
-            println("Missing a maven metadata file!!!!")
-            finder
-              .stop(
-                possibles.filterNot(possible =>
-                  possible.startsWith(
-                    "maven-metadata"
-                  ) || possible == "Parent Directory" || possible == "../"
-                )
-              )
+            if metadataExists then
+              finder
+                .withMetadata(url)
+                .stop(filterPossibles(possibles))
+            else finder.withMissingMetadata().stop(filterPossibles(possibles))
 
           case (possibles, _) =>
-            finder.stop(
-              possibles.filterNot(possible =>
-                possible.startsWith(
-                  "maven-metadata"
-                ) || possible == "Parent Directory" || possible == "../"
-              )
-            )
+            finder.stop(filterPossibles(possibles))
+
         end match
     end match
   end fetch
 
   def findWith(finder: Finder.ActiveFinder): StoppedFinder = fetch(url, finder)
 
+  private def filterPossibles(possibles: List[String]) =
+    possibles.filterNot(possible =>
+      possible.startsWith(
+        "maven-metadata"
+      ) || possible == "Parent Directory" || possible == "../"
+    )
+
   private def containsMetadata(links: List[String]): Boolean =
     links.contains("maven-metadata.xml")
-//links.find(_.text == "maven-metadata.xml").nonEmpty
 
 end Repository
 
@@ -190,7 +166,7 @@ case object SonatypeSnapshots extends Repository:
         tr.select("td:nth-child(2)").text()
       val version =
         tr.select("td:nth-child(1)").text()
-      if lastModified.nonEmpty && !version.contains("maven-metadata") then
+      if lastModified.nonEmpty then
         val date: ZonedDateTime =
           ZonedDateTime.parse(lastModified, zdtFormatter)
         List((version, date.toLocalDateTime))

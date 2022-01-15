@@ -54,7 +54,8 @@ this, which was a good learning experience.
 
 ## Using it
 
-Build it locally
+Build it locally (Can't do a native image _yet_ since this is in Scala3, but the
+next release of `scala-cli` should allow this.)
 ```sh
 scala-cli package src/ -o exists
 ```
@@ -76,6 +77,34 @@ Exact match not found, so here are the 10 newest possiblities:
  0.11.0+13-b6814655-SNAPSHOT
  0.11.0+11-5898e3b5-SNAPSHOT
  0.11.0+10-41d3108e-SNAPSHOT
+```
+
+Use it for sbt plugins
+```sh
+❯ ./exists org.wartremover:sbt-wartremover_2.12_1.0:
+Found up until: org.wartremover:sbt-wartremover_2.12_1.0
+No mavemen-metadata.xml file was found for this artifact
+Exact match not found, so here are the 10 newest possiblities:
+ 2.4.9
+ 2.4.8
+ 2.4.7
+ 2.4.6
+ 2.4.5
+ 2.4.4
+ 2.4.3
+ 2.4.2
+ 2.4.16
+ 2.4.15
+```
+
+Use it for your custom nexus
+```sh
+❯ ./exists -r $NEXUS_URL -c $NEXUS_USERNAME:$NEXUS_PASSWORD my.org:
+Found up until: my.org
+Exact match not found, so here are the 3 newest possiblities:
+  app1_2.13
+  app1_3
+  app2_3
 ```
 
 ## Don't

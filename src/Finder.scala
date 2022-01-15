@@ -1,5 +1,7 @@
 import java.net.URI
+
 import Repository.Entry
+
 sealed trait Finder
 
 /** The Finder is meant to server as a mini state-machine of sorts where it
@@ -152,11 +154,14 @@ object Finder:
       ouput match
         case Left(msg)              => println(s"Something went wrong: $msg")
         case Right(Left(possibles)) =>
-          // TODO this could be a huge list. Should we make this configurable?
+          // TODO this could be a huge list. So for sanity we just do 10. Make
+          // this configurable later
+          val toTake = Math.min(10, possibles.size)
           println(
-            s"Exact match not found, so here are the possiblities:"
+            s"Exact match not found, so here are the $toTake newest possiblities:"
           )
           possibles
+            .take(toTake)
             .foreach(possible => println(s" ${possible.stripSuffix("/")}"))
         case Right(Right(msg)) => println(msg)
     end show

@@ -1,22 +1,20 @@
-import org.jsoup.nodes.Document
-import org.jsoup.Jsoup
-
-import scala.collection.JavaConverters.*
-import scala.annotation.tailrec
-import Finder.StoppedFinder
-import org.jsoup.nodes.Element
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import scala.util.Try
-import java.time.ZonedDateTime
 import java.net.URI
+import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+
+import Finder.StoppedFinder
 import Repository.Entry
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
+
+import scala.annotation.tailrec
+import scala.collection.JavaConverters.*
+import scala.util.Try
 
 /** An ADT of the type of repositories that exist and exists knows how to
   *  traverse through.
-  *
-  *  TODO this could just be an enum but I didn't start it this way and now I
-  *  don't feel like switching it
   */
 sealed trait Repository:
   /** The name of the repository */
@@ -48,11 +46,9 @@ sealed trait Repository:
     val needle :: leftover = finder.toFind
 
     finder.fetcher.getDoc(url.toString) match
-      case Left(msg)  => finder.stop(msg)
+      case Left(msg) => finder.stop(msg)
       case Right(doc) =>
-        // TODO sort by option?
-        // val all = gatherPossibles(doc).sortBy(entry => entry.lastUpdate).reverse
-        val all = gatherPossibles(doc)
+        val all = gatherPossibles(doc).sorted.reverse
 
         val metadata: Option[Entry] = all
           .collectFirst {
@@ -80,7 +76,7 @@ sealed trait Repository:
               if findNeedleUri(possibles, needle).nonEmpty =>
             metadata match
               case Some(data) =>
-                finder.withMetadata(data.uri).updateAndStop(needle)
+                finder.withMetadata(url.resolve(data.uri)).updateAndStop(needle)
               case None => finder.withMissingMetadata().updateAndStop(needle)
 
           case (possibles, _) if findNeedleUri(possibles, needle).nonEmpty =>
@@ -90,8 +86,9 @@ sealed trait Repository:
             val message =
               s"Can't find ${needle.value} or anything that starts with it"
             metadata match
-              case Some(data) => finder.withMetadata(data.uri).stop(message)
-              case None       => finder.withMissingMetadata().stop(message)
+              case Some(data) =>
+                finder.withMetadata(url.resolve(data.uri)).stop(message)
+              case None => finder.withMissingMetadata().stop(message)
 
           case (possibles, _) if possibles.isEmpty =>
             finder.stop(
@@ -101,7 +98,9 @@ sealed trait Repository:
           case (possibles, DependencySegment.Version(_)) =>
             metadata match
               case Some(data) =>
-                finder.withMetadata(data.uri).stop(filterPossibles(possibles))
+                finder
+                  .withMetadata(url.resolve(data.uri))
+                  .stop(filterPossibles(possibles))
               case None =>
                 finder.withMissingMetadata().stop(filterPossibles(possibles))
 
@@ -125,20 +124,6 @@ sealed trait Repository:
 end Repository
 
 object Repository:
-
-  case class Entry(value: String, uri: URI, lastUpdate: Option[LocalDateTime])
-
-  /** Parse a string to a repository type. If we don't know it just blow up for
-    * now.
-    */
-  def fromString(name: String) =
-    name.toLowerCase match
-      case "central" | "sonatype:releases"            => CentralRepository
-      case "sonatype:snapshot" | "sonatype:snapshots" => SonatypeSnapshots
-      case SontatypeNexus.CustomNexus(url) =>
-        if url.endsWith("/") then SontatypeNexus(URI(url))
-        else SontatypeNexus(URI(url + "/"))
-      case _ => CentralRepository
 
   case object CentralRepository extends Repository:
     val name = "central"
@@ -267,6 +252,35 @@ object Repository:
     val CustomNexus = "nexus:(.*)".r
 
   end SontatypeNexus
+
+  case class Entry(value: String, uri: URI, lastUpdate: Option[LocalDateTime])
+      extends Ordered[Entry]:
+
+    override def compare(that: Entry) =
+      (lastUpdate, that.lastUpdate) match
+        case (None, None) => 0
+        case (Some(thisLastUpdated), Some(thatLastUpdated))
+            if thisLastUpdated.isAfter(thatLastUpdated) =>
+          1
+        case (Some(thisLastUpdated), Some(thatLastUpdated))
+            if thisLastUpdated.isEqual(thatLastUpdated) =>
+          0
+        case (Some(thisLastUpdated), Some(thatLastUpdated)) => -1
+        case (None, _)                                      => -1
+        case _                                              => 1
+  end Entry
+
+  /** Parse a string to a repository type. If we don't know it just blow up for
+    * now.
+    */
+  def fromString(name: String) =
+    name.toLowerCase match
+      case "central" | "sonatype:releases"            => CentralRepository
+      case "sonatype:snapshot" | "sonatype:snapshots" => SonatypeSnapshots
+      case SontatypeNexus.CustomNexus(url) =>
+        if url.endsWith("/") then SontatypeNexus(URI(url))
+        else SontatypeNexus(URI(url + "/"))
+      case _ => CentralRepository
 
   private def filterPossibles(possibles: List[Entry]): List[Entry] =
     possibles.filterNot(entry =>

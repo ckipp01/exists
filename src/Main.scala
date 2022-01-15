@@ -42,9 +42,13 @@ def parseOptions(args: Seq[String]): Finder =
       case "--repository" :: repo :: rest =>
         parse(finder.withRepository(repo), rest)
       case "-c" :: credentials :: rest =>
-        parseCreds(credentials).fold(finder.stop, finder.withCreds)
+        parseCreds(credentials) match
+          case Left(msg)    => finder.stop(msg)
+          case Right(creds) => parse(finder.withCreds(creds), rest)
       case "--credentials" :: credentials :: rest =>
-        parseCreds(credentials).fold(finder.stop, finder.withCreds)
+        parseCreds(credentials) match
+          case Left(msg)    => finder.stop(msg)
+          case Right(creds) => parse(finder.withCreds(creds), rest)
       case dep :: Nil =>
         DependencySegment
           .fromString(dep)

@@ -1,8 +1,9 @@
-import org.jsoup.Jsoup
-import org.jsoup.HttpStatusException
-import org.jsoup.nodes.Document
 import java.util.Base64
 import java.nio.charset.StandardCharsets
+
+import org.jsoup.HttpStatusException
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 
 /** The Fetcher is fully in charge of actually fetching the pages and metadata. Any
   *  actual fetching of anything should be done in here and only in here.

@@ -1,7 +1,9 @@
-import org.jsoup.nodes.Document
 import java.time.LocalDateTime
-import scala.util.Try
 import java.time.format.DateTimeFormatter
+
+import org.jsoup.nodes.Document
+
+import scala.util.Try
 
 enum Metadata:
   case Found(latestVersion: String, lasdUpdatedDate: Option[LocalDateTime])

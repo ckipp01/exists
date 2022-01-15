@@ -6,7 +6,7 @@ import scala.annotation.tailrec
 
 @main def run(args: String*): Unit =
   args match
-    case Seq() | Seq("help") | Seq("--h") | Seq("-h") => help()
+    case Seq() | Seq("help") | Seq("--h") | Seq("-h") | Seq("--help") => help()
     case args =>
       parseOptions(args) match
         case finder: Finder.ActiveFinder  => finder.find().show()
@@ -20,7 +20,7 @@ def help() =
                |
                |Options:
                |
-               | -h, --h           shows what you're looking at
+               | -h, --help        shows what you're looking at
                | -c, --credentials credentials for the passed in repository
                | -r, --repository  specify a repository
                |
@@ -42,22 +42,21 @@ def parseOptions(args: Seq[String]): Finder =
       case "--repository" :: repo :: rest =>
         parse(finder.withRepository(repo), rest)
       case "-c" :: credentials :: rest =>
-        credentials.split(":").toList match
-          case user :: pass :: Nil =>
-            parse(finder.withCreds(user, pass), rest)
-          case _ =>
-            finder.stop("""Creds are malformed. They must be "user:password"""")
+        parseCreds(credentials).fold(finder.stop, finder.withCreds)
       case "--credentials" :: credentials :: rest =>
-        credentials.split(":").toList match
-          case user :: pass :: Nil =>
-            parse(finder.withCreds(user, pass), rest)
-          case _ =>
-            finder.stop("""Creds are malformed. They must be "user:password"""")
+        parseCreds(credentials).fold(finder.stop, finder.withCreds)
       case dep :: Nil =>
         DependencySegment
           .fromString(dep)
-          .fold(finder.stop, finder.withDeps(_))
+          .fold(finder.stop, finder.withDeps)
       case opts => finder.stop("Unrecognized options")
 
   parse(Finder.ActiveFinder.empty(), args.toList)
 end parseOptions
+
+def parseCreds(credentials: String): Either[String, Creds] =
+  credentials.split(":").toList match
+    case user :: pass :: Nil =>
+      Right(Creds(user, pass))
+    case _ =>
+      Left("""Malformed creds. They should be like "username:password"""")

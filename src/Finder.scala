@@ -67,8 +67,8 @@ object Finder:
       this.copy(toFind = deps)
 
     /** Update the finder by updating the fetcher to have creds */
-    def withCreds(username: String, password: String) =
-      this.copy(fetcher = fetcher.copy(creds = Some(Creds(username, password))))
+    def withCreds(creds: Creds) =
+      this.copy(fetcher = fetcher.copy(creds = Some(creds)))
 
     /** Only called when you know the url exists, so this url will be fetched
       * and parsed and then the finder updated with the info.

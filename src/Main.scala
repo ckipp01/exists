@@ -2,6 +2,8 @@
 // using options -deprecation -feature -explain
 // using lib org.jsoup:jsoup:1.14.3
 
+package io.kipp.exists
+
 import scala.annotation.tailrec
 
 @main def run(args: String*): Unit =

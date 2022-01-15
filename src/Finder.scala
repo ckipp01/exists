@@ -1,3 +1,5 @@
+package io.kipp.exists
+
 import java.net.URI
 
 import Repository.Entry
@@ -166,13 +168,4 @@ object Finder:
         case Right(Right(msg)) => println(msg)
     end show
   end StoppedFinder
-
-  object StoppedFinder:
-    def fromBadFormat(msg: String): StoppedFinder =
-      StoppedFinder(List.empty, Left(msg), None)
-
-  def fromString(dep: String): Finder =
-    DependencySegment.fromString(dep) match
-      case Right(segments) => ActiveFinder(segments)
-      case Left(invalid)   => StoppedFinder.fromBadFormat(invalid)
 end Finder

@@ -1,3 +1,5 @@
+package io.kipp.exists
+
 import java.util.Base64
 import java.nio.charset.StandardCharsets
 

@@ -1,3 +1,5 @@
+package io.kipp.exists
+
 /** The parts of our dependency we'll be searching for. "" is an valid value if you
   *  want to get all option at that level.
   *  @value The value of that segment

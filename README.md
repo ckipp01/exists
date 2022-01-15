@@ -4,12 +4,12 @@ When you just want to know what exists.
 
 ## What does this do?
 
-exists will tell you if a specific artifact exists or it will give you all the
+`exists` will tell you if a specific artifact exists or it will give you all the
 possibilities that _might_ match what you're looking for. As a bonus, if you
-looking for versions it'll also tell you if there is a missing
-`maven-metadata.xml` file, what the latest version in the metadata file is also
-show you if that version doesn't actually match what the latest version _really_
-is.
+looking for versions it'll also tell you if there's a missing
+`maven-metadata.xml` file, what the latest version in the metadata file is, and
+also show you if that version doesn't actually match what the latest version
+_really_ is.
 
 This current works with Maven Central (Sonatype releases), Sonatype snapshots,
 and also private Sonatype Nexus installations that you may be using.

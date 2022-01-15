@@ -11,6 +11,9 @@ end Metadata
 
 object Metadata:
 
+  val preface = "maven-metadata"
+  val filename = "maven-metadata.xml"
+
   private val mavenMetadataLastUpdatedFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("uuuuMMddHHmmss")
 

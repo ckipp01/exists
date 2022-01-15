@@ -31,37 +31,10 @@ sealed trait Repository:
     *
     *  @param doc The document that holds all the goodies aka links
     */
-  def gatherPossibles(doc: Document): List[Repository.Entry] =
-    val dateRegex = """([0-9]{4}-[0-9]{2}-[0-9]{2})"""
-    val timeRegex = """([0-9]{2}:[0-9]{2})"""
-    val DateTimeAndIgnoreOtherJunk = (dateRegex + " " + timeRegex + ".*").r
-    doc
-      .select("a")
-      .asScala
-      .toList
-      .map { elem =>
-        (
-          elem.text,
-          elem.attr("href"),
-          Try(elem.nextSibling.toString.trim).getOrElse("")
-        )
-      }
-      .map {
-        case (value, uri, DateTimeAndIgnoreOtherJunk(date, time)) =>
-          Repository.Entry(
-            value,
-            URI(uri),
-            Try(
-              LocalDateTime.parse(
-                s"$date $time",
-                DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm")
-              )
-            ).toOption
-          )
-        case (value, uri, _) =>
-          Repository.Entry(value, URI(uri), None)
-      }
-  end gatherPossibles
+  def gatherPossibles(doc: Document): List[Repository.Entry]
+
+  import Repository.filterPossibles
+  import Repository.findNeedleUri
 
   /** Where the actual parsing of the index pages happen.
     * @param url the url that will be fetched
@@ -83,7 +56,7 @@ sealed trait Repository:
 
         val metadata: Option[Entry] = all
           .collectFirst {
-            case entry if entry.value.trim == "maven-metadata.xml" => entry
+            case entry if entry.value == Metadata.filename => entry
           }
 
         (
@@ -94,57 +67,31 @@ sealed trait Repository:
           needle
         ) match
           case (possibles, _)
-              if possibles
-                .map(_.value)
-                .contains(
-                  s"${needle.value}/"
-                ) || possibles
-                .map(_.value)
-                .contains(needle.value) && leftover.nonEmpty =>
-            val target = possibles
-              .find(possible =>
-                possible.value == needle.value || possible.value == needle.value + "/"
-              )
-              .map(_.uri)
-              .getOrElse(
-                URI(url.toString + needle.value + "/")
-              ) // This should alway be here since we check above
-
-            fetch(url.resolve(target), finder.update(needle, leftover))
+              if findNeedleUri(
+                possibles,
+                needle
+              ).nonEmpty && leftover.nonEmpty =>
+            val nextUrl = findNeedleUri(possibles, needle).getOrElse(
+              URI(url.toString + needle.value + "/")
+            )
+            fetch(url.resolve(nextUrl), finder.update(needle, leftover))
 
           case (possibles, DependencySegment.Version(_))
-              if possibles
-                .map(_.value)
-                .contains(
-                  s"${needle.value}/"
-                ) || possibles.map(_.value).contains(needle.value) =>
-            if metadata.nonEmpty then
-              val target =
-                metadata.fold(s"${url}maven-metadata.xml")(x => x.uri.toString)
-              finder.withMetadata(target).updateAndStop(needle)
-            else finder.withMissingMetadata().updateAndStop(needle)
+              if findNeedleUri(possibles, needle).nonEmpty =>
+            metadata match
+              case Some(data) =>
+                finder.withMetadata(data.uri).updateAndStop(needle)
+              case None => finder.withMissingMetadata().updateAndStop(needle)
 
-          case (possibles, _)
-              if possibles
-                .map(_.value)
-                .contains(
-                  s"${needle.value}/"
-                ) || possibles.map(_.value).contains(needle.value) =>
+          case (possibles, _) if findNeedleUri(possibles, needle).nonEmpty =>
             finder.updateAndStop(needle)
 
           case (possibles, DependencySegment.Version(_)) if possibles.isEmpty =>
             val message =
               s"Can't find ${needle.value} or anything that starts with it"
-            if metadata.nonEmpty then
-              val target =
-                metadata.fold(s"${url}maven-metadata.xml")(x => x.uri.toString)
-              finder
-                .withMetadata(target)
-                .stop(message)
-            else
-              finder
-                .withMissingMetadata()
-                .stop(message)
+            metadata match
+              case Some(data) => finder.withMetadata(data.uri).stop(message)
+              case None       => finder.withMissingMetadata().stop(message)
 
           case (possibles, _) if possibles.isEmpty =>
             finder.stop(
@@ -152,21 +99,13 @@ sealed trait Repository:
             )
 
           case (possibles, DependencySegment.Version(_)) =>
-            if metadata.nonEmpty then
-              val target =
-                metadata.fold(s"${url}maven-metadata.xml")(x => x.uri.toString)
-              finder
-                .withMetadata(target)
-                .stop(
-                  filterPossibles(possibles).map(_.value)
-                ) //  TODO send in entries instead
-            else
-              finder
-                .withMissingMetadata()
-                .stop(filterPossibles(possibles).map(_.value))
+            metadata match
+              case Some(data) =>
+                finder.withMetadata(data.uri).stop(filterPossibles(possibles))
+              case None =>
+                finder.withMissingMetadata().stop(filterPossibles(possibles))
 
-          case (possibles, _) =>
-            finder.stop(filterPossibles(possibles).map(_.value))
+          case (possibles, _) => finder.stop(filterPossibles(possibles))
 
         end match
     end match
@@ -182,13 +121,6 @@ sealed trait Repository:
     */
   def findWith(finder: Finder.ActiveFinder): StoppedFinder =
     fetch(url, finder)
-
-  private def filterPossibles(possibles: List[Repository.Entry]) =
-    possibles.filterNot(entry =>
-      entry.value.startsWith(
-        "maven-metadata"
-      ) || entry.value == "Parent Directory" || entry.value == "../"
-    )
 
 end Repository
 
@@ -212,12 +144,47 @@ object Repository:
     val name = "central"
     val url = URI("https://repo1.maven.org/maven2/")
 
+    def gatherPossibles(doc: Document): List[Repository.Entry] =
+      val dateRegex = """([0-9]{4}-[0-9]{2}-[0-9]{2})"""
+      val timeRegex = """([0-9]{2}:[0-9]{2})"""
+      val DateTimeAndIgnoreOtherJunk = (dateRegex + " " + timeRegex + ".*").r
+      doc
+        .select("a")
+        .asScala
+        .toList
+        .map { elem =>
+          (
+            elem.text,
+            elem.attr("href"),
+            Try(elem.nextSibling.toString.trim).getOrElse("")
+          )
+        }
+        .map {
+          case (value, uri, DateTimeAndIgnoreOtherJunk(date, time)) =>
+            Repository.Entry(
+              value,
+              URI(uri),
+              Try(
+                LocalDateTime.parse(
+                  s"$date $time",
+                  DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm")
+                )
+              ).toOption
+            )
+          case (value, uri, _) =>
+            Repository.Entry(value.trim, URI(uri), None)
+        }
+    end gatherPossibles
+  end CentralRepository
+
   case object SonatypeReleases extends Repository:
     val name = "sonatype:releases"
     // https://oss.sonatype.org/content/repositories/releases/ will just redirect
     // to the above so we just make them point to exactly the same thing and
     // avoid the redirect
     val url = CentralRepository.url
+    def gatherPossibles(doc: Document): List[Repository.Entry] =
+      CentralRepository.gatherPossibles(doc)
 
   case object SonatypeSnapshots extends Repository:
     val name = "sonatype:snapshots"
@@ -239,9 +206,9 @@ object Repository:
             val date =
               Try(ZonedDateTime.parse(lm, zdtFormatter)).toOption
                 .map(_.toLocalDateTime)
-            Some(Repository.Entry(t, URI(u), date))
+            Some(Repository.Entry(t.trim, URI(u), date))
           case (_, t, u) if t.nonEmpty =>
-            Some(Repository.Entry(t, URI(u), None))
+            Some(Repository.Entry(t.trim, URI(u), None))
           case _ => None
       }
 
@@ -294,13 +261,29 @@ object Repository:
             )
 
     end findWith
-
-  // https://nexus-acdc.tools.msi.audi.com/service/rest/repository/browse/acdc-releases/
-
   end SontatypeNexus
 
   object SontatypeNexus:
     val CustomNexus = "nexus:(.*)".r
 
   end SontatypeNexus
+
+  private def filterPossibles(possibles: List[Entry]): List[Entry] =
+    possibles.filterNot(entry =>
+      entry.value.startsWith(
+        "maven-metadata"
+      ) || entry.value == "Parent Directory" || entry.value == "../"
+    )
+
+  private def findNeedleUri(
+      possibles: List[Entry],
+      needle: DependencySegment
+  ) =
+    possibles
+      .collectFirst {
+        case entry
+            if entry.value == s"${needle.value}/" || entry.value == needle.value =>
+          entry.uri
+      }
+
 end Repository

@@ -1,3 +1,5 @@
+import java.net.URI
+import Repository.Entry
 sealed trait Finder
 
 /** The Finder is meant to server as a mini state-machine of sorts where it
@@ -45,8 +47,8 @@ object Finder:
     /** Stop the finder since the needle wasn't found, but you have a list of
       * possibles.
       */
-    def stop(possibles: List[String]): StoppedFinder =
-      StoppedFinder(found, Right(Left(possibles)), metadata)
+    def stop(possibles: List[Entry]): StoppedFinder =
+      StoppedFinder(found, Right(Left(possibles.map(_.value))), metadata)
 
     /** Update the finder with a new repository */
     def updateRepository(Repository: Repository) =
@@ -73,9 +75,8 @@ object Finder:
     /** Only called when you know the url exists, so this url will be fetched
       * and parsed and then the finder updated with the info.
       */
-    // TODO change this probably to uri
-    def withMetadata(baseUrl: String) =
-      Metadata.parse(fetcher.getDoc(baseUrl)) match
+    def withMetadata(uri: URI) =
+      Metadata.parse(fetcher.getDoc(uri.toString)) match
         case Left(err) =>
           println(s"Something went wrong fetching metadata: $err")
           this

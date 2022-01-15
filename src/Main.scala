@@ -21,6 +21,7 @@ def help() =
                |Options:
                |
                | -h, --h           shows what you're looking at
+               | -c, --credentials credentials for the passed in repository
                | -r, --repository  specify a repository
                |
                |""".stripMargin
@@ -40,6 +41,18 @@ def parseOptions(args: Seq[String]): Finder =
       case "-r" :: repo :: rest => parse(finder.withRepository(repo), rest)
       case "--repository" :: repo :: rest =>
         parse(finder.withRepository(repo), rest)
+      case "-c" :: credentials :: rest =>
+        credentials.split(":").toList match
+          case user :: pass :: Nil =>
+            parse(finder.withCreds(user, pass), rest)
+          case _ =>
+            finder.stop("""Creds are malformed. They must be "user:password"""")
+      case "--credentials" :: credentials :: rest =>
+        credentials.split(":").toList match
+          case user :: pass :: Nil =>
+            parse(finder.withCreds(user, pass), rest)
+          case _ =>
+            finder.stop("""Creds are malformed. They must be "user:password"""")
       case dep :: Nil =>
         DependencySegment
           .fromString(dep)

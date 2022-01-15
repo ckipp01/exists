@@ -66,11 +66,16 @@ object Finder:
       )
       this.copy(toFind = deps)
 
+    /** Update the finder by updating the fetcher to have creds */
+    def withCreds(username: String, password: String) =
+      this.copy(fetcher = fetcher.copy(creds = Some(Creds(username, password))))
+
     /** Only called when you know the url exists, so this url will be fetched
       * and parsed and then the finder updated with the info.
       */
+    // TODO change this probably to uri
     def withMetadata(baseUrl: String) =
-      Metadata.parse(fetcher.getDoc(s"${baseUrl}maven-metadata.xml")) match
+      Metadata.parse(fetcher.getDoc(baseUrl)) match
         case Left(err) =>
           println(s"Something went wrong fetching metadata: $err")
           this
@@ -88,7 +93,13 @@ object Finder:
     def apply(
         toFind: List[DependencySegment]
     ): ActiveFinder =
-      ActiveFinder(List.empty, toFind, new Fetcher, CentralRepository, None)
+      ActiveFinder(
+        List.empty,
+        toFind,
+        new Fetcher(None),
+        Repository.CentralRepository,
+        None
+      )
 
     def empty() = apply(List.empty)
 
@@ -138,17 +149,14 @@ object Finder:
           )
 
       ouput match
-        case Left(msg) => println(s"Something went wrong: $msg")
+        case Left(msg)              => println(s"Something went wrong: $msg")
         case Right(Left(possibles)) =>
-          val totalToShow = Math.min(possibles.size, 5)
+          // TODO this could be a huge list. Should we make this configurable?
           println(
-            s"Exact match not found, so here are the $totalToShow closest versions with the newest dates:"
+            s"Exact match not found, so here are the possiblities:"
           )
-          // TODO probably make this configurable somehow, but for now just
-          // limit this to 5 so the output isn't huge.
           possibles
-            .take(totalToShow)
-            .foreach(possible => println(s" ${possible.dropRight(1)}"))
+            .foreach(possible => println(s" ${possible.stripSuffix("/")}"))
         case Right(Right(msg)) => println(msg)
     end show
   end StoppedFinder

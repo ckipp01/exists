@@ -287,7 +287,7 @@ object Repository:
   private def filterPossibles(possibles: List[Entry]): List[Entry] =
     possibles.filterNot(entry =>
       entry.value.startsWith(
-        "maven-metadata"
+        Metadata.preface
       ) || entry.value == "Parent Directory" || entry.value == "../"
     )
 

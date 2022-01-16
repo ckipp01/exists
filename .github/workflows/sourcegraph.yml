@@ -1,0 +1,26 @@
+name: Sourcegraph
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lsif:
+    runs-on: ubuntu-latest
+    name: "Upload LSIF"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: coursier/cache-action@v6
+      - uses: coursier/setup-action@v1.2.0-M1
+      - run: cs install --contrib lsif-java scala-cli
+      - run: scala-cli compile -O -Xsemanticdb -O -semanticdb-target:$PWD src/
+      - run: lsif-java index-semanticdb META-INF/ 
+      - name: src lsif upload
+        run: |
+          mkdir -p bin
+          curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o bin/src
+          chmod +x bin/src
+          ./bin/src lsif upload -trace=3 -github-token $GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

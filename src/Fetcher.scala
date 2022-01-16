@@ -21,8 +21,6 @@ case class Fetcher(creds: Option[Creds]):
       Jsoup.newSession.header("Authorization", "Basic " + base64login(auth))
     case None => Jsoup.newSession
 
-  // .header("Authorization", "Basic " + base64login)
-
   /** The actual fetching of the page content. We don't do any parsing or
     *  anything here. We literally just grab it, ensure we didn't get an error
     *  doing it and then return the document.
@@ -41,8 +39,8 @@ case class Fetcher(creds: Option[Creds]):
         Left(
           s"Stopped because I don't have authorization for: $url"
         )
-      case x =>
-        Left(s"Stopped because: ${x.getMessage}")
+      case e: Throwable =>
+        Left(s"Stopped because: ${e.getMessage}")
   end getDoc
 end Fetcher
 

@@ -54,10 +54,6 @@ object Finder:
     def stop(possibles: List[Entry]): StoppedFinder =
       StoppedFinder(found, Right(Left(possibles.map(_.value))), metadata)
 
-    /** Update the finder with a new repository */
-    def updateRepository(Repository: Repository) =
-      this.copy(repository = repository)
-
     def find() = repository.findWith(this)
 
     /** Update the finder with a new repository give the string name. */
@@ -120,7 +116,10 @@ object Finder:
     */
   case class StoppedFinder(
       found: List[DependencySegment],
-      ouput: Either[String, Either[List[String], String]],
+      output: Either[
+        String,
+        Either[List[String], String]
+      ], // TODO maybe Right[Left] should be an entry instead of a string
       metadata: Option[Metadata]
   ) extends Finder:
 
@@ -153,7 +152,7 @@ object Finder:
             "No mavemen-metadata.xml file was found for this artifact"
           )
 
-      ouput match
+      output match
         case Left(msg)              => println(s"Something went wrong: $msg")
         case Right(Left(possibles)) =>
           // TODO this could be a huge list. So for sanity we just do 10. Make

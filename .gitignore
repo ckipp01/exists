@@ -2,3 +2,5 @@
 .metals/
 .scala/
 exists
+META-INF/
+dump.lsif

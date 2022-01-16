@@ -23,9 +23,10 @@ def help() =
                |Options:
                |
                | -h, --help        shows what you're looking at
-               | -c, --credentials credentials for the passed in repository
+               | -c, --credentials credentials for the passed in withRepository
+               |                   ex. username:password
                | -r, --repository  specify a repository
-               |
+               |                   ex. [central,sontaype:snapshots,sonatype:url]
                |""".stripMargin
 
   println(msg)

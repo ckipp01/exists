@@ -11,10 +11,11 @@ looking for versions it'll also tell you if there's a missing
 also show you if that version doesn't actually match what the latest version
 _really_ is.
 
-This current works with Maven Central (Sonatype releases), Sonatype snapshots,
-and also private Sonatype Nexus installations that you may be using.
+This currently works with Maven Central, Sonatype releases, Sonatype snapshots,
+and Sonatype Nexus repository OSS installations that you may be using.
 
 It really doesn't do too much.
+
 ```
 Usage: exists [options] [org[:name[:version]]]
 
@@ -24,8 +25,10 @@ Either I'll find it or complete it.
 Options:
 
  -h, --help        shows what you're looking at
- -c, --credentials credentials for the passed in repository
+ -c, --credentials credentials for the passed in withRepository
+                   ex. username:password
  -r, --repository  specify a repository
+                   ex. [central,sontaype:snapshots,sonatype:url]
 ```
 
 ## Why'd you build this?
@@ -45,7 +48,7 @@ understanding of a few of the following:
 
 So many fun questions.
 
-For now, feel free to use this in a very similiar way you'd use `cs complete
+For now, feel free to use this in a very similar way you'd use `cs complete
 <artifact>`, but also having it work on sbt plugin published to maven central,
 snapshots, and your self-hosted Sonatype nexus.
 
@@ -61,7 +64,7 @@ scala-cli package src/ -o exists
 ```
 
 Use it for snapshots
-```sh
+```
 ❯ ./exists -r sonatype:snapshots org.scalameta:metals_2.12:
 Found up until: org.scalameta:metals_2.12
 Latest version according to metadata: 0.10.9+49-60d74a51-SNAPSHOT
@@ -80,7 +83,7 @@ Exact match not found, so here are the 10 newest possiblities:
 ```
 
 Use it for sbt plugins
-```sh
+```
 ❯ ./exists org.wartremover:sbt-wartremover_2.12_1.0:
 Found up until: org.wartremover:sbt-wartremover_2.12_1.0
 No mavemen-metadata.xml file was found for this artifact

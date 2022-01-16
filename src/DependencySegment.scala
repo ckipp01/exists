@@ -12,8 +12,8 @@ end DependencySegment
 
 object DependencySegment:
   // TODO An improvement in the future would be to not make org.scalemata into
-  // two unrelated segments, but have them be better "joined" but "seperate"
-  // since they do need to be seperate since they are at differnet levels when
+  // two unrelated segments, but have them be better "joined" but "separate"
+  // since they do need to be separate since they are at different levels when
   // we look at the index page, but the are both the Org.
   private def splitOrg(org: String): List[String] = org.split('.').toList
 

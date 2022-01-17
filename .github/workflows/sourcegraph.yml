@@ -14,7 +14,7 @@ jobs:
       - uses: coursier/cache-action@v6
       - uses: coursier/setup-action@v1.2.0-M1
       - run: cs install --contrib lsif-java scala-cli
-      - run: scala-cli compile -O -Xsemanticdb .
+      - run: scala-cli compile --semantic-db .
       - run: lsif-java index-semanticdb .
       - name: src lsif upload
         run: |

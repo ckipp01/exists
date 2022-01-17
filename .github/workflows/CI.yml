@@ -19,4 +19,4 @@ jobs:
           apps: scala-cli
 
       - name: Test
-        run: scala-cli test src/
+        run: scala-cli test .

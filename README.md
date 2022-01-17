@@ -60,7 +60,7 @@ this, which was a good learning experience.
 Build it locally (Can't do a native image _yet_ since this is in Scala3, but the
 next release of `scala-cli` should allow this.)
 ```sh
-scala-cli package src/ -o exists
+scala-cli package . -o exists
 ```
 
 Use it for snapshots

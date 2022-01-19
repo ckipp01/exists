@@ -41,9 +41,14 @@ def parseOptions(args: Seq[String]): Finder =
   @tailrec
   def parse(finder: Finder.ActiveFinder, rest: List[String]): Finder =
     rest match
-      case "-r" :: repo :: rest => parse(finder.withRepository(repo), rest)
+      case "-r" :: repo :: rest =>
+        Repository.fromString(repo) match
+          case Left(msg)   => finder.stop(msg)
+          case Right(repo) => parse(finder.withRepository(repo), rest)
       case "--repository" :: repo :: rest =>
-        parse(finder.withRepository(repo), rest)
+        Repository.fromString(repo) match
+          case Left(msg)   => finder.stop(msg)
+          case Right(repo) => parse(finder.withRepository(repo), rest)
       case "-c" :: credentials :: rest =>
         parseCreds(credentials) match
           case Left(msg)    => finder.stop(msg)

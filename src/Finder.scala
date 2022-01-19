@@ -56,9 +56,9 @@ object Finder:
 
     def find() = repository.findWith(this)
 
-    /** Update the finder with a new repository give the string name. */
-    def withRepository(name: String) =
-      this.copy(repository = Repository.fromString(name))
+    /** Update the finder with a new repository. */
+    def withRepository(repo: Repository) =
+      this.copy(repository = repo)
 
     /** Update the finder with the desired dependency segments. */
     def withDeps(deps: List[DependencySegment]) =

@@ -2,8 +2,12 @@
 
 package io.kipp.exists
 
-import io.kipp.exists.Finder.StoppedFinder
+import java.net.URI
+
 import io.kipp.exists.Finder.ActiveFinder
+import io.kipp.exists.Finder.StoppedFinder
+import io.kipp.exists.Repository.SontatypeNexus
+import io.kipp.exists.Repository.SonatypeSnapshots
 
 class MainTests extends munit.FunSuite:
 
@@ -50,7 +54,7 @@ class MainTests extends munit.FunSuite:
       parseOptions(Seq("-r", "sonatype:snapshots") ++ baseArgs)
     assertEquals(
       result,
-      baseFinder.withRepository("sonatype:snapshots")
+      baseFinder.withRepository(SonatypeSnapshots)
     )
   }
 
@@ -66,7 +70,25 @@ class MainTests extends munit.FunSuite:
       )
     assertEquals(
       result,
-      baseFinder.withRepository("sonatype:nexus").withCreds(baseCreds)
+      baseFinder
+        .withRepository(SontatypeNexus(URI("https://mycustomernexusaddres/")))
+        .withCreds(baseCreds)
+    )
+  }
+
+  test("invalid-repo") {
+    val result: Finder =
+      parseOptions(
+        Seq(
+          "-r",
+          "google:myCustomerNexusAddres",
+          "-c",
+          "username:password"
+        ) ++ baseArgs
+      )
+    assertEquals(
+      result,
+      baseFinder.stop("Unrecognized repository.")
     )
   }
 

@@ -1,6 +1,7 @@
 package io.kipp.exists
 
 import java.net.URI
+import java.net.URL
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -13,7 +14,9 @@ import org.jsoup.nodes.Element
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters.*
+import scala.util.Failure
 import scala.util.Try
+import scala.util.Success
 
 /** An ADT of the type of repositories that exist and exists knows how to
   *  traverse through.
@@ -251,7 +254,7 @@ object Repository:
   end SontatypeNexus
 
   object SontatypeNexus:
-    val CustomNexus = "nexus:(.*)".r
+    val CustomNexus = "(nexus|sonatype):(.*)".r
 
   end SontatypeNexus
 
@@ -275,14 +278,20 @@ object Repository:
   /** Parse a string to a repository type. If we don't know it just blow up for
     * now.
     */
-  def fromString(name: String) =
+  def fromString(name: String): Either[String, Repository] =
     name.toLowerCase match
-      case "central" | "sonatype:releases"            => CentralRepository
-      case "sonatype:snapshot" | "sonatype:snapshots" => SonatypeSnapshots
-      case SontatypeNexus.CustomNexus(url) =>
-        if url.endsWith("/") then SontatypeNexus(URI(url))
-        else SontatypeNexus(URI(url + "/"))
-      case _ => CentralRepository
+      case "central" | "sonatype:releases" => Right(CentralRepository)
+      case "sonatype:snapshot" | "sonatype:snapshots" =>
+        Right(SonatypeSnapshots)
+      case SontatypeNexus.CustomNexus(_, url) =>
+        val raw = if url.endsWith("/") then url else url + "/"
+        Try(URL(raw)) match
+          case Failure(issue)
+              if issue.getMessage.trim.startsWith("no protocol") =>
+            Right(SontatypeNexus(URI("https://" + raw.toString)))
+          case Failure(invalid) => Left(invalid.getMessage)
+          case Success(valid)   => Right(SontatypeNexus(valid.toURI))
+      case _ => Left("Unrecognized repository.")
 
   private def filterPossibles(possibles: List[Entry]): List[Entry] =
     possibles.filterNot(entry =>

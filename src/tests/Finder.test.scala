@@ -3,6 +3,7 @@ package io.kipp
 import java.net.URI
 
 import io.kipp.exists.*
+import io.kipp.exists.Repository.SonatypeSnapshots
 
 class FinderTests extends munit.FunSuite:
 
@@ -65,7 +66,7 @@ class FinderTests extends munit.FunSuite:
 
   test("with-repo") {
     assertEquals(
-      baseFinder.withRepository("sonatype:snapshots"),
+      baseFinder.withRepository(SonatypeSnapshots),
       Finder.ActiveFinder(
         found = List.empty,
         toFind = List.empty,

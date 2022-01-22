@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Test
+    name: Format check and test
     runs-on: ubuntu-latest
 
     steps:
@@ -18,5 +18,8 @@ jobs:
         with:
           apps: scala-cli
 
+      - name: Format check
+        run: make format-check
+
       - name: Test
-        run: scala-cli test .
+        run: make test

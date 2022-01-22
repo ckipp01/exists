@@ -11,6 +11,7 @@ import scala.annotation.tailrec
     case Seq() | Seq("help") | Seq("--h") | Seq("-h") | Seq("--help") => help()
     case args =>
       parseOptions(args) match
+        case finder: Finder.PreFinder     => finder.activate().find().show()
         case finder: Finder.ActiveFinder  => finder.find().show()
         case finder: Finder.StoppedFinder => finder.show()
 
@@ -39,7 +40,7 @@ end help
   */
 def parseOptions(args: Seq[String]): Finder =
   @tailrec
-  def parse(finder: Finder.ActiveFinder, rest: List[String]): Finder =
+  def parse(finder: Finder.PreFinder, rest: List[String]): Finder =
     rest match
       case "-r" :: repo :: rest =>
         Repository.fromString(repo) match
@@ -63,7 +64,7 @@ def parseOptions(args: Seq[String]): Finder =
           .fold(finder.stop, finder.withDeps)
       case opts => finder.stop("Unrecognized options")
 
-  parse(Finder.ActiveFinder.empty(), args.toList)
+  parse(Finder.PreFinder.empty(), args.toList)
 end parseOptions
 
 def parseCreds(credentials: String): Either[String, Creds] =

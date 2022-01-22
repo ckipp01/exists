@@ -57,11 +57,7 @@ this, which was a good learning experience.
 
 ## Using it
 
-Build it locally (Can't do a native image _yet_ since this is in Scala3, but the
-next release of `scala-cli` should allow this.)
-```sh
-scala-cli package . -o exists
-```
+To build it locally clone this repo and do a `make package`.
 
 Use it for snapshots
 ```

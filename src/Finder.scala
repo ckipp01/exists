@@ -8,10 +8,49 @@ sealed trait Finder
 
 /** The Finder is meant to server as a mini state-machine of sorts where it
   * fetches what it needs to ensure the org artifact versions is avaible and/or
-  * get the possiblities that exists. Once it has those it transitions from an
-  * Active Finder to a Stopped Finder
+  * get the possiblities that exists. Once it has everything it needs to start it
+  * transitions from a [[Prefinder]] to a [[ActiveFinder]] to a [[StoppedFinder]].
   */
 object Finder:
+
+  /** @param toFind the dependency segments we'll search for
+    * @param fetcher fetcher to be used for all the fetching
+    * @param repository the type of repository we'll look in
+    */
+  case class PreFinder(
+      toFind: List[DependencySegment],
+      fetcher: Fetcher,
+      repository: Repository
+  ) extends Finder:
+
+    /** Update the finder with a new repository. */
+    def withRepository(repo: Repository) =
+      this.copy(repository = repo)
+
+    /** Update the finder with the desired dependency segments. */
+    def withDeps(deps: List[DependencySegment]) =
+      assert(
+        toFind.isEmpty,
+        "This should only ever be called once and it looks like it already has been"
+      )
+      this.copy(toFind = deps)
+
+    /** Update the finder by updating the fetcher to have creds */
+    def withCreds(creds: Creds) =
+      this.copy(fetcher = fetcher.copy(creds = Some(creds)))
+
+    /** Convert the finder into an [[ActiveFinder]] */
+    def activate() = ActiveFinder.fromPreFinder(this)
+
+    /** Stop the finder with the given error message */
+    def stop(msg: String): StoppedFinder =
+      StoppedFinder(List.empty, Left(msg), None)
+
+  end PreFinder
+
+  object PreFinder:
+    def empty() =
+      PreFinder(List.empty, Fetcher(None), Repository.CentralRepository)
 
   /** Finder that is in the process of finding a dependency or that availble
     * values for a segment. Once `toFind` becomes emtpy, it will transition to
@@ -21,6 +60,7 @@ object Finder:
     * @param toFind the dependency segments we have yet to find
     * @param fetcher all fetching of the indexes and metadatafiles happen in here
     * @param repository the type of repository we are looking in
+    * @param metadata
     */
   case class ActiveFinder(
       found: List[DependencySegment],
@@ -54,23 +94,8 @@ object Finder:
     def stop(possibles: List[Entry]): StoppedFinder =
       StoppedFinder(found, Right(Left(possibles.map(_.value))), metadata)
 
+    /** Kicks off the process of finding all the thigns. */
     def find() = repository.findWith(this)
-
-    /** Update the finder with a new repository. */
-    def withRepository(repo: Repository) =
-      this.copy(repository = repo)
-
-    /** Update the finder with the desired dependency segments. */
-    def withDeps(deps: List[DependencySegment]) =
-      assert(
-        toFind.isEmpty,
-        "This should only ever be called once and it looks like it already has been"
-      )
-      this.copy(toFind = deps)
-
-    /** Update the finder by updating the fetcher to have creds */
-    def withCreds(creds: Creds) =
-      this.copy(fetcher = fetcher.copy(creds = Some(creds)))
 
     /** Only called when you know the url exists, so this url will be fetched
       * and parsed and then the finder updated with the info.
@@ -91,18 +116,16 @@ object Finder:
   end ActiveFinder
 
   object ActiveFinder:
-    def apply(
-        toFind: List[DependencySegment]
+    def fromPreFinder(
+        pre: PreFinder
     ): ActiveFinder =
       ActiveFinder(
         List.empty,
-        toFind,
-        new Fetcher(None),
-        Repository.CentralRepository,
+        pre.toFind,
+        pre.fetcher,
+        pre.repository,
         None
       )
-
-    def empty() = apply(List.empty)
 
   /** Once a Finder has either found everything it needs to or runs into an
     * issue it becomes a StoppedFinder

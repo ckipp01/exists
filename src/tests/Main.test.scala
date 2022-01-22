@@ -4,7 +4,7 @@ package io.kipp.exists
 
 import java.net.URI
 
-import io.kipp.exists.Finder.ActiveFinder
+import io.kipp.exists.Finder.PreFinder
 import io.kipp.exists.Finder.StoppedFinder
 import io.kipp.exists.Repository.SontatypeNexus
 import io.kipp.exists.Repository.SonatypeSnapshots
@@ -13,7 +13,7 @@ class MainTests extends munit.FunSuite:
 
   lazy val baseArgs = Seq("org.scalameta:metals_2.12:")
   lazy val baseFinder =
-    Finder.ActiveFinder
+    PreFinder
       .empty()
       .withDeps(
         List(
@@ -102,7 +102,7 @@ class MainTests extends munit.FunSuite:
       )
     assertEquals(
       result,
-      ActiveFinder.empty().stop("Unrecognized options")
+      PreFinder.empty().stop("Unrecognized options")
     )
   }
 end MainTests

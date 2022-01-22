@@ -7,7 +7,7 @@ import io.kipp.exists.Repository.SonatypeSnapshots
 
 class FinderTests extends munit.FunSuite:
 
-  val baseFinder = Finder.ActiveFinder.empty()
+  val baseFinder = Finder.PreFinder.empty()
 
   test("stop") {
     assertEquals(
@@ -22,10 +22,12 @@ class FinderTests extends munit.FunSuite:
 
   test("update") {
     assertEquals(
-      baseFinder.update(
-        justFound = DependencySegment.Org("org"),
-        leftover = List(DependencySegment.Org("scalameta"))
-      ),
+      baseFinder
+        .activate()
+        .update(
+          justFound = DependencySegment.Org("org"),
+          leftover = List(DependencySegment.Org("scalameta"))
+        ),
       Finder.ActiveFinder(
         found = List(DependencySegment.Org("org")),
         toFind = List(DependencySegment.Org("scalameta")),
@@ -38,9 +40,11 @@ class FinderTests extends munit.FunSuite:
 
   test("update-and-stop") {
     assertEquals(
-      baseFinder.updateAndStop(
-        justFound = DependencySegment.Org("org")
-      ),
+      baseFinder
+        .activate()
+        .updateAndStop(
+          justFound = DependencySegment.Org("org")
+        ),
       Finder.StoppedFinder(
         found = List(DependencySegment.Org("org")),
         output = Right(Right("It exists!")),
@@ -51,11 +55,14 @@ class FinderTests extends munit.FunSuite:
 
   test("stop-with-possiblities") {
     assertEquals(
-      baseFinder.stop(
-        List(
-          Repository.Entry(value = "test", uri = URI("test"), lastUpdate = None)
-        )
-      ),
+      baseFinder
+        .activate()
+        .stop(
+          List(
+            Repository
+              .Entry(value = "test", uri = URI("test"), lastUpdate = None)
+          )
+        ),
       Finder.StoppedFinder(
         found = List.empty,
         output = Right(Left(List("test"))),
@@ -67,12 +74,10 @@ class FinderTests extends munit.FunSuite:
   test("with-repo") {
     assertEquals(
       baseFinder.withRepository(SonatypeSnapshots),
-      Finder.ActiveFinder(
-        found = List.empty,
+      Finder.PreFinder(
         toFind = List.empty,
         Fetcher(None),
-        Repository.SonatypeSnapshots,
-        None
+        Repository.SonatypeSnapshots
       )
     )
   }
@@ -80,12 +85,10 @@ class FinderTests extends munit.FunSuite:
   test("with-deps") {
     assertEquals(
       baseFinder.withDeps(List(DependencySegment.Org("org"))),
-      Finder.ActiveFinder(
-        found = List.empty,
+      Finder.PreFinder(
         toFind = List(DependencySegment.Org("org")),
         Fetcher(None),
-        Repository.CentralRepository,
-        None
+        Repository.CentralRepository
       )
     )
   }
@@ -93,19 +96,17 @@ class FinderTests extends munit.FunSuite:
   test("with-creds") {
     assertEquals(
       baseFinder.withCreds(Creds("username", "password")),
-      Finder.ActiveFinder(
-        found = List.empty,
+      Finder.PreFinder(
         toFind = List.empty,
         Fetcher(Some(Creds("username", "password"))),
-        Repository.CentralRepository,
-        None
+        Repository.CentralRepository
       )
     )
   }
 
   test("missing-metadata") {
     assertEquals(
-      baseFinder.withMissingMetadata(),
+      baseFinder.activate().withMissingMetadata(),
       Finder.ActiveFinder(
         found = List.empty,
         toFind = List.empty,

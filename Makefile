@@ -8,7 +8,7 @@ clean:
 # https://github.com/VirtusLab/scala-cli/issues/528
 # So we need to wait for a release with that fix.
 format:
-	cs launch scalafmt -- --check
+	cs launch scalafmt
 
 format-check:
 	cs launch scalafmt -- --check

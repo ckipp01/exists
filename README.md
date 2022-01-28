@@ -57,7 +57,7 @@ this, which was a good learning experience.
 
 ## Using it
 
-To build it locally clone this repo and do a `make package`.
+To build it locally clone this repo and do a `scala-cli package . -o exists -f`.
 
 Use it for snapshots
 ```

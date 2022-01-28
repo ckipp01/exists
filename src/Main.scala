@@ -1,6 +1,6 @@
-// using scala 3.1.1
-// using options -deprecation -feature -explain
-// using lib org.jsoup:jsoup:1.14.3
+//> using scala "3.1.1"
+//> using options "-deprecation", "-feature", "-explain"
+//> using lib "org.jsoup:jsoup:1.14.3"
 
 package io.kipp.exists
 

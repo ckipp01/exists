@@ -1,4 +1,4 @@
-// using lib org.scalameta::munit::1.0.0-M1
+//> using lib "org.scalameta::munit::1.0.0-M1"
 
 package io.kipp.exists
 

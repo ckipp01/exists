@@ -1,6 +1,6 @@
 .bsp/
 .metals/
-.scala/
+.scala-build/
 exists
 META-INF/
 dump.lsif

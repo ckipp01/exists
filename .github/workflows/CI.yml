@@ -16,10 +16,10 @@ jobs:
       - uses: coursier/cache-action@v6
       - uses: coursier/setup-action@v1.2.0-M1
         with:
-          apps: scala-cli
+          apps: scala-cli scalafmt
 
       - name: Format check
-        run: make format-check
+        run: scalafmt --check src/
 
       - name: Test
-        run: make test
+        run: scala-cli test .
